@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">Janus</string>
+
+    <string name="action_settings">Settings</string>
+
+    <string name="drawer_open">Open Navigation Drawer</string>
+    <string name="drawer_close">Close Navigation Drawer</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="title_activity_routes">RoutesActivity</string>
+
+    <string name="hello_world">Hello world!</string>
+    <string name="title_activity_people">PeopleActivity</string>
+    <string name="title_activity_stats">StatsActivity</string>
+    <string name="title_activity_">Activity</string>
+    <string name="title_activity_login">LoginActivity</string>
+    <string name="title_activity_register">RegisterActivity</string>
+
+    <string name="google_app_id">sunny-influence-124100</string>
+</resources>
