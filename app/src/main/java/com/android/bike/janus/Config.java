@@ -1,8 +1,5 @@
 package com.android.bike.janus;
 
-/**
- * Created by Vasonomics on 20-02-2016.
- */
 public interface Config {
     final static int PLAY_SERVICES_RESOLUTION_REQUEST = 1000;
 

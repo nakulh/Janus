@@ -24,6 +24,7 @@ public class Route {
     private int durationValue;
     private String distanceText;
     private int distanceValue;
+    private String startAddressText;
     private String endAddressText;
     private PolylineOptions polyOptions;
 
@@ -41,6 +42,14 @@ public class Route {
 
     public void setEndAddressText(String endAddressText) {
         this.endAddressText = endAddressText;
+    }
+
+    public String getStartAddressText() {
+        return startAddressText;
+    }
+
+    public void setStartAddressText(String startAddressText) {
+        this.startAddressText = startAddressText;
     }
 
     public String getDurationText() {

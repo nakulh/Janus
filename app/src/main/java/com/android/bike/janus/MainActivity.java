@@ -47,6 +47,10 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -78,6 +82,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Location mLastLocation;
     private LatLng mStartLatLng;
     private LatLng mEndLatLng;
+    private LatLng mPrevLatLng;
+    private LatLng end[];
+    private String maneuver[];
     private LocationRequest mLocationRequest;
     private Marker marker;
     private boolean mRequestingLocationUpdates = true;
@@ -86,13 +93,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private int routeNum = 0;
     private boolean directionsSearched = false;
     private boolean isNewSession = true;
+    private int turn = 0;
+
+    //Metrics Variables
+    private Double speed = 0.0;
+    private Double distance = 0.0;
+    private Double time = 0.0;
+    private String rideStartLocation = "";
+    private String rideEndLocation = "";
 
     //Google Places Api variables
     private TextView placeCompleteTextView;
     private static final int REQUEST_CODE_AUTOCOMPLETE = 1;
 
     private ProgressDialog progressDialog;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -428,13 +442,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         //sendHello();
         if (mLastLocation != null) {
             Log.i(TAG, "initializing mStartLatLng");
+            mPrevLatLng = mStartLatLng;
             mStartLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
 
             Log.i(TAG, "going to UpdateUI");
             if (!directionsSearched) {
                 addMarker();
             } else {
+                time += Config.FASTEST_INTERVAL;
                 updateRouteMarkers();
+                new NavigationAsyncTask().execute();
+                new MetricsAsyncTask().execute();
             }
         }
     }
@@ -649,6 +667,24 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         }
 
+        rideStartLocation = routes.get(routeNum).getStartAddressText();
+        rideEndLocation = routes.get(routeNum).getEndAddressText();
+
+        end = new LatLng[routes.get(routeNum).getEndLocation().size()];
+        maneuver = new String[routes.get(routeNum).getManeuver().size()];
+
+        for(i = 0; i < routes.get(routeNum).getEndLocation().size(); i++){
+            end[i] = routes.get(routeNum).getEndLocation().get(i);
+        }
+
+        Log.i(TAG, "End locations are: "+end.toString());
+
+        for(i = 0; i < routes.get(routeNum).getManeuver().size(); i++){
+            maneuver[i] = routes.get(routeNum).getManeuver().get(i);
+        }
+
+        Log.i(TAG, "Maneuvers are: " + maneuver);
+
         Log.i(TAG, "Adding Polyline");
 
         PolylineOptions polyOptions = new PolylineOptions();
@@ -706,5 +742,180 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         marker = mMap.addMarker(new MarkerOptions().position(mEndLatLng).title("Destination"));
         //mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(mRouteLatLngBounds.getCenter(), 13));
         Log.i(TAG, "Route markers updated");
+    }
+
+    public class NavigationAsyncTask extends AsyncTask<Void, Void, String> {
+
+        private final String TAG = RequestAsyncTask.class.getSimpleName();
+
+        ParseJSON parseJSON = new ParseJSON(mStartLatLng, end[turn]);
+
+        @Override
+        protected String doInBackground(Void... params) {
+
+            Log.i(TAG, "Reached AsyncTask");
+            Log.i(TAG, "Current LatLng is = " + mStartLatLng);
+            Log.i(TAG, "Destination LatLng is = " + end[turn]);
+
+            HttpURLConnection mUrlConnection = null;
+            StringBuilder mJsonResults = new StringBuilder();
+
+            String result;
+
+            try {
+                URL url = new URL(parseJSON.makeURL());
+                mUrlConnection = (HttpURLConnection) url.openConnection();
+                InputStreamReader in = new InputStreamReader(mUrlConnection.getInputStream());
+
+                // Load the results into a StringBuilder
+                int read;
+                char[] buff = new char[1024];
+                while ((read = in.read(buff)) != -1) {
+                    mJsonResults.append(buff, 0, read);
+                }
+
+                result = mJsonResults.toString();
+
+            } catch (MalformedURLException e) {
+                Log.e(TAG, "Error processing Distance Matrix API URL");
+                return null;
+
+            } catch (IOException e) {
+                System.out.println("Error connecting to Distance Matrix");
+                return null;
+            } finally {
+                if (mUrlConnection != null) {
+                    mUrlConnection.disconnect();
+                }
+            }
+
+            Log.i(TAG, "Result = " + result);
+            return result;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            Log.i(TAG, "Reached onPostExecute");
+
+            routes = parseJSON.parse(result);
+            if (routes != null) {
+                Log.i(TAG, "Routes is not null. Updating navigation.");
+
+                int i, j, n = 0, size = routes.size();
+
+                for (i = 1; i < size; i++) {
+                    for (j = 0; j < i; j++) {
+                        if ((routes.get(i).getDistanceValue() < routes.get(j).getDistanceValue()) &&
+                                routes.get(i).getDurationValue() < routes.get(j).getDurationValue()) {
+                            n = i;
+                        } else if ((routes.get(i).getDistanceValue() < routes.get(j).getDistanceValue()) &&
+                                routes.get(i).getDurationValue() > routes.get(j).getDurationValue()) {
+                            n = i;
+                        }
+                    }
+                }
+
+                distance += routes.get(i).getDistanceValue();
+
+                if(routes.get(n).getDistanceValue() < 2){
+                    if(turn < maneuver.length-1) {
+                        turn++;
+                    }
+                }
+                else if (routes.get(n).getDistanceValue() < 5) {
+                    String direction[] = maneuver[turn].split("-");
+                    Log.i(TAG, " maneuver = " + maneuver[turn]);
+
+                    if (direction[direction.length - 1].equals("left")) {
+                        Log.i(TAG, "Turn Left!");
+                        Toast.makeText(getApplicationContext(), "Turn Left!", Toast.LENGTH_SHORT).show();
+                    } else if (direction[direction.length - 1].equals("right")) {
+                        Log.i(TAG, "Turn Right!");
+                        Toast.makeText(getApplicationContext(), "Turn Right!", Toast.LENGTH_SHORT).show();
+                    }
+                }
+                else{
+                    Log.e(TAG, "Head Straight!");
+                    Toast.makeText(getApplicationContext(), "Head Straight!", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                progressDialog.dismiss();
+                Toast.makeText(getApplicationContext(), "No routes to the destination could be found.", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    public class MetricsAsyncTask extends AsyncTask<Void, Void, String> {
+
+        private final String TAG = MetricsAsyncTask.class.getSimpleName();
+
+        ParseJSON parseJSON = new ParseJSON(mPrevLatLng, mStartLatLng);
+
+        @Override
+        protected String doInBackground(Void... params) {
+
+            Log.i(TAG, "Reached AsyncTask");
+            Log.i(TAG, "Current LatLng is = " + mStartLatLng);
+            Log.i(TAG, "Destination LatLng is = " + end[turn]);
+
+            HttpURLConnection mUrlConnection = null;
+            StringBuilder mJsonResults = new StringBuilder();
+
+            String result;
+
+            try {
+                URL url = new URL(parseJSON.makeURL());
+                mUrlConnection = (HttpURLConnection) url.openConnection();
+                InputStreamReader in = new InputStreamReader(mUrlConnection.getInputStream());
+
+                // Load the results into a StringBuilder
+                int read;
+                char[] buff = new char[1024];
+                while ((read = in.read(buff)) != -1) {
+                    mJsonResults.append(buff, 0, read);
+                }
+
+                result = mJsonResults.toString();
+
+            } catch (MalformedURLException e) {
+                Log.e(TAG, "Error processing Distance Matrix API URL");
+                return null;
+
+            } catch (IOException e) {
+                System.out.println("Error connecting to Distance Matrix");
+                return null;
+            } finally {
+                if (mUrlConnection != null) {
+                    mUrlConnection.disconnect();
+                }
+            }
+
+            Log.i(TAG, "Result = " + result);
+            return result;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            Log.i(TAG, "Reached onPostExecute");
+
+            try {
+                final JSONObject json = new JSONObject(result);
+                JSONArray jsonRoutes = json.getJSONArray("routes");
+                JSONObject jsonRoute = jsonRoutes.getJSONObject(0);
+                final JSONObject leg = jsonRoute.getJSONArray("legs").getJSONObject(0);
+
+                rideEndLocation = leg.getString("end_address");
+                distance += leg.getJSONObject("distance").getDouble("value");
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void stopNavigation(){
+        directionsSearched = false;
+        speed = distance/time;
+        distance /= 1000;
+        time /= 60.0;
     }
 }

@@ -1,0 +1,154 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    tools:context="com.android.bike.janus.RegisterActivity">
+
+    <android.support.v7.widget.Toolbar
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/toolbar"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        android:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+        android:minHeight="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:fitsSystemWindows="true"
+        android:elevation="5dp" />
+
+    <android.support.design.widget.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/fullnameTextInputLayout"
+        app:hintTextAppearance="@style/MyHintText"
+        android:layout_above="@+id/emailTextInputLayout"
+        android:layout_alignLeft="@+id/emailTextInputLayout"
+        android:layout_alignStart="@+id/emailTextInputLayout"
+        android:layout_alignRight="@+id/emailTextInputLayout"
+        android:layout_alignEnd="@+id/emailTextInputLayout">
+
+        <EditText
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textEmailAddress"
+            android:ems="10"
+            android:theme="@style/MyEditText"
+            android:id="@+id/fullnameEditText"
+            android:textAllCaps="false"
+            android:hint="Full Name"
+            android:layout_above="@+id/passwordEditText"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_marginBottom="15dp" />
+
+    </android.support.design.widget.TextInputLayout>
+
+    <android.support.design.widget.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/emailTextInputLayout"
+        app:hintTextAppearance="@style/MyHintText"
+        android:layout_above="@+id/usernameTextInputLayout"
+        android:layout_alignLeft="@+id/usernameTextInputLayout"
+        android:layout_alignStart="@+id/usernameTextInputLayout"
+        android:layout_alignRight="@+id/usernameTextInputLayout"
+        android:layout_alignEnd="@+id/usernameTextInputLayout">
+
+        <EditText
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textEmailAddress"
+            android:ems="10"
+            android:theme="@style/MyEditText"
+            android:id="@+id/emailEditText"
+            android:textAllCaps="false"
+            android:hint="E-Mail"
+            android:layout_above="@+id/passwordEditText"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_marginBottom="15dp" />
+
+    </android.support.design.widget.TextInputLayout>
+
+    <android.support.design.widget.TextInputLayout
+        android:layout_width="250dp"
+        android:layout_height="wrap_content"
+        android:id="@+id/usernameTextInputLayout"
+        app:hintTextAppearance="@style/MyHintText"
+        android:layout_centerVertical="true"
+        android:layout_centerHorizontal="true">
+
+        <EditText
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textEmailAddress"
+            android:ems="10"
+            android:theme="@style/MyEditText"
+            android:id="@+id/usernameEditText"
+            android:textAllCaps="false"
+            android:hint="Username"
+            android:layout_above="@+id/passwordEditText"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_marginBottom="15dp" />
+
+    </android.support.design.widget.TextInputLayout>
+
+    <android.support.design.widget.TextInputLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/passwordTextInputLayout"
+        app:hintTextAppearance="@style/MyHintText"
+        android:layout_below="@+id/usernameTextInputLayout"
+        android:layout_alignLeft="@+id/usernameTextInputLayout"
+        android:layout_alignStart="@+id/usernameTextInputLayout"
+        android:layout_alignRight="@+id/usernameTextInputLayout"
+        android:layout_alignEnd="@+id/usernameTextInputLayout">
+
+        <EditText
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword"
+            android:ems="10"
+            android:id="@+id/passwordEditText"
+            android:theme="@style/MyEditText"
+            android:hint="Password"
+            android:textAllCaps="false"
+            android:layout_centerVertical="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true" />
+
+    </android.support.design.widget.TextInputLayout>
+
+    <Button
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/registerButton"
+        android:text="Register"
+        android:textAllCaps="false"
+        android:textColor="@color/white"
+        android:theme="@style/RaisedButton"
+        android:elevation="5dp"
+        android:onClick="startMainActivity"
+        android:layout_below="@+id/passwordTextInputLayout"
+        android:layout_alignLeft="@+id/passwordTextInputLayout"
+        android:layout_alignStart="@+id/passwordTextInputLayout"
+        android:layout_alignRight="@+id/passwordTextInputLayout"
+        android:layout_alignEnd="@+id/passwordTextInputLayout"
+        android:layout_marginTop="25dp" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Already Registered! Take me to Login."
+        android:id="@+id/loginActivityButton"
+        style="@style/Widget.AppCompat.Button.Borderless"
+        android:textAllCaps="false"
+        android:onClick="startLoginActivity"
+        android:theme="@style/FlatButton"
+        android:textColor="@color/colorPrimary"
+        android:layout_below="@+id/registerButton"
+        android:layout_centerHorizontal="true" />
+
+</RelativeLayout>

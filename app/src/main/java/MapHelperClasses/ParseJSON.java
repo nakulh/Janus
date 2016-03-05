@@ -116,6 +116,7 @@ public class ParseJSON {
                 route.setDurationValue(leg.getJSONObject("duration").getInt("value"));
                 route.setDistanceText(leg.getJSONObject("distance").getString("text"));
                 route.setDistanceValue(leg.getJSONObject("distance").getInt("value"));
+                route.setStartAddressText(leg.getString("start_address"));
                 route.setEndAddressText(leg.getString("end_address"));
                 route.setLength(leg.getJSONObject("distance").getInt("value"));
 
