@@ -1,8 +1,14 @@
 package com.android.bike.janus;
 
+import android.app.Dialog;
 import android.app.ProgressDialog;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.location.Location;
 import android.net.ConnectivityManager;
@@ -12,9 +18,11 @@ import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
+import android.telephony.PhoneStateListener;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -51,13 +59,25 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+import javax.net.ssl.HttpsURLConnection;
 
 import MapHelperClasses.ParseJSON;
 import MapHelperClasses.Route;
@@ -108,6 +128,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private ProgressDialog progressDialog;
 
+    //Bluetooth Api variables
+    private BluetoothAdapter BTAdapter;
+    public static int REQUEST_BLUETOOTH = 1;
+    private OutputStream outStream;
+    private InputStream inStream;
+    private String[] light = {"f", "l", "r", "u", "c"};
+
+    //SharedPreferences variables
+    private SharedPreferences sharedPreferences;
+    //private SharedPreferences.Editor editor;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -118,6 +149,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setTitle(TOOLBAR_TITLE);
+
+        sharedPreferences = getSharedPreferences(Config.JANUS_LOGIN_PREF, Context.MODE_PRIVATE);
+
+        Boolean firstTime = sharedPreferences.getBoolean("first", true);
+
+        if (firstTime) {
+            Intent intent = new Intent(this, LoginActivity.class);
+            startActivity(intent);
+        }
 
         //Find the DrawerView and NavigationView
         mDrawer = (DrawerLayout) findViewById(R.id.drawer_layout);
@@ -160,6 +200,41 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         List<Integer> filterTypes = new ArrayList<>();
         filterTypes.add(Place.TYPE_ADMINISTRATIVE_AREA_LEVEL_2);
+
+        BTAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (BTAdapter == null) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Not Compatible")
+                    .setMessage("Your phone does not support Bluetooth!")
+                    .setPositiveButton("Exit", new Dialog.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            System.exit(0);
+                        }
+                    })
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .show();
+        } else if (!BTAdapter.isEnabled()) {
+            Intent enableBT = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableBT, REQUEST_BLUETOOTH);
+        } else {
+            BluetoothDevice mmDevice;
+            Set<BluetoothDevice> pairedDevices = BTAdapter.getBondedDevices();
+            Log.i(TAG, "Paired Devices are:" + pairedDevices);
+            BluetoothDevice[] devices = pairedDevices.toArray(new BluetoothDevice[pairedDevices.size()]);
+            for (int i = 0; i < pairedDevices.size(); i++) {
+                Log.i(TAG, "Device " + i + " : " + devices[i].getName());
+            }
+            if (pairedDevices.size() > 0) {
+                for (int i = 0; i < pairedDevices.size(); i++) {
+                    if (devices[i].getName().equals("HC-05")) {
+                        Log.i(TAG, "HC05 Present!" + devices[i].getName());
+                        mmDevice = devices[i];
+                        connectBluetooth(mmDevice);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     public void selectDrawerItem(MenuItem menuItem) {
@@ -655,7 +730,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         polylines = new ArrayList<>();
         //add route(s) to the map.
 
-        for (i = 1; i < size; i++) {
+        for (i = 0; i < size; i++) {
             for (j = 0; j < i; j++) {
                 if ((routes.get(i).getDistanceValue() < routes.get(j).getDistanceValue()) &&
                         routes.get(i).getDurationValue() < routes.get(j).getDurationValue()) {
@@ -803,7 +878,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                 int i, j, n = 0, size = routes.size();
 
-                for (i = 1; i < size; i++) {
+                for (i = 0; i < size; i++) {
                     for (j = 0; j < i; j++) {
                         if ((routes.get(i).getDistanceValue() < routes.get(j).getDistanceValue()) &&
                                 routes.get(i).getDurationValue() < routes.get(j).getDurationValue()) {
@@ -815,8 +890,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     }
                 }
 
-                distance += routes.get(i).getDistanceValue();
-
                 if(routes.get(n).getDistanceValue() < 2){
                     if(turn < maneuver.length-1) {
                         turn++;
@@ -827,14 +900,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     Log.i(TAG, " maneuver = " + maneuver[turn]);
 
                     if (direction[direction.length - 1].equals("left")) {
+                        sendLeft();
                         Log.i(TAG, "Turn Left!");
                         Toast.makeText(getApplicationContext(), "Turn Left!", Toast.LENGTH_SHORT).show();
                     } else if (direction[direction.length - 1].equals("right")) {
+                        sendRight();
                         Log.i(TAG, "Turn Right!");
                         Toast.makeText(getApplicationContext(), "Turn Right!", Toast.LENGTH_SHORT).show();
                     }
                 }
                 else{
+                    sendStraight();
                     Log.e(TAG, "Head Straight!");
                     Toast.makeText(getApplicationContext(), "Head Straight!", Toast.LENGTH_SHORT).show();
                 }
@@ -917,5 +993,163 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         speed = distance/time;
         distance /= 1000;
         time /= 60.0;
+        SendDataAsyncTask asyncTask = new SendDataAsyncTask();
+        asyncTask.execute();
+    }
+
+    public class SendDataAsyncTask extends AsyncTask<Void, Void, String> {
+
+        private final String TAG = SendDataAsyncTask.class.getSimpleName();
+
+        @Override
+        protected String doInBackground(Void... params) {
+
+            Log.i(TAG, "Reached RegisterAsyncTask");
+
+            String http = "http://janus-59642.onmodulus.net/pushactivity";
+            HttpURLConnection mUrlConnection = null;
+
+            String response = "";
+
+            try {
+                URL url = new URL(http);
+
+                String urlParams = encodeString();
+                mUrlConnection = (HttpURLConnection) url.openConnection();
+                mUrlConnection.setReadTimeout(15000);
+                mUrlConnection.setConnectTimeout(15000);
+                mUrlConnection.setRequestMethod("POST");
+                mUrlConnection.setDoInput(true);
+                mUrlConnection.setDoOutput(true);
+                mUrlConnection.setRequestProperty("Content-Type",
+                        "application/x-www-form-urlencoded");
+                mUrlConnection.setRequestProperty("Content-Length", "" +
+                        Integer.toString(urlParams.getBytes().length));
+
+                OutputStream os = mUrlConnection.getOutputStream();
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(os, "UTF-8"));
+                writer.write(urlParams);
+
+                writer.flush();
+                writer.close();
+                os.close();
+
+                int responseCode = mUrlConnection.getResponseCode();
+
+                if (responseCode == HttpsURLConnection.HTTP_OK) {
+                    Log.e(TAG, "Good response from server: "+responseCode);
+                    String line;
+                    BufferedReader br = new BufferedReader(new InputStreamReader(mUrlConnection.getInputStream()));
+                    while ((line=br.readLine()) != null) {
+                        response += line;
+                    }
+                }
+                else {
+                    Log.e(TAG, "Bad response from server: "+responseCode);
+                    response="";
+                }
+
+            } catch (MalformedURLException e) {
+                Log.e(TAG, "MalformedURLException: "+e);
+                return null;
+
+            } catch (IOException e) {
+                Log.e(TAG, "IOException: " + e);
+                return null;
+            } finally {
+                if (mUrlConnection != null) {
+                    mUrlConnection.disconnect();
+                }
+            }
+
+            Log.i(TAG, "Response = " + response);
+            return response;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            Log.i(TAG, "Reached onPostExecute");
+        }
+    }
+
+    private String encodeString() throws UnsupportedEncodingException {
+        StringBuilder result = new StringBuilder();
+        result.append("&");
+
+        result.append("email=");
+        result.append(URLEncoder.encode("", "UTF-8"));
+        result.append("&activity=");
+        result.append(URLEncoder.encode(rideEndLocation, "UTF-8"));
+
+        Log.i(TAG, "Result URL=" + result.toString());
+
+        return result.toString();
+    }
+
+    private void connectBluetooth(BluetoothDevice mmDevice) {
+        UUID uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+        BluetoothSocket mmSocket = null;
+        try {
+            mmSocket = mmDevice.createRfcommSocketToServiceRecord(uuid);
+            BTAdapter.cancelDiscovery();
+            mmSocket.connect();
+            sendConnected();
+            Log.i(TAG, "Socket Connected");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            outStream = mmSocket.getOutputStream();
+            Log.i(TAG, "outStream Connected");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            inStream = mmSocket.getInputStream();
+            Log.i(TAG, "inStream Connected");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendStraight(){
+        try {
+            outStream.write(light[0].getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendLeft(){
+        try {
+            outStream.write(light[1].getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendRight(){
+        try {
+            outStream.write(light[2].getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendUturn(){
+        try {
+            outStream.write(light[3].getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendConnected(){
+        try {
+            outStream.write(light[3].getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

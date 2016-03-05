@@ -12,9 +12,6 @@
         <item
             android:id="@+id/nav_third_fragment"
             android:title="People"/>
-        <item
-            android:id="@+id/nav_fourth_fragment"
-            android:title="Stats"/>
         <item android:title="Sub items">
             <menu>
                 <item

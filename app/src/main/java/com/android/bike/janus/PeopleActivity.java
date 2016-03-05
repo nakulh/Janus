@@ -4,6 +4,8 @@ import android.content.Context;
 import android.graphics.Rect;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -13,12 +15,19 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 
+import AdapterClasses.PeopleFeed;
+import AdapterClasses.PeopleFeedAdapter;
+
 public class PeopleActivity extends AppCompatActivity {
 
     private final String TOOLBAR_TITLE = "People";
     static final String TAG = PeopleActivity.class.getSimpleName();
 
     private Toolbar toolbar;
+
+    private RecyclerView mRecyclerView;
+    private PeopleFeedAdapter mAdapter;
+    private RecyclerView.LayoutManager mLayoutManager;
 
     private EditText searchEditText;
     private ImageView clearImageView;
@@ -34,6 +43,16 @@ public class PeopleActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         //getSupportActionBar().setTitle(TOOLBAR_TITLE);
+
+        mRecyclerView = (RecyclerView) findViewById(R.id.recyclerView);
+        mRecyclerView.setHasFixedSize(true);
+
+        mLayoutManager = new LinearLayoutManager(this);
+        mRecyclerView.setLayoutManager(mLayoutManager);
+
+        PeopleFeed peopleFeed = new PeopleFeed();
+        mAdapter = new PeopleFeedAdapter(peopleFeed.createFeeds());
+        mRecyclerView.setAdapter(mAdapter);
 
         //Find clearImageView
         clearImageView = (ImageView) findViewById(R.id.clearImageView);

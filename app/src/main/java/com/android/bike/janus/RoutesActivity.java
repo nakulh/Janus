@@ -2,9 +2,14 @@ package com.android.bike.janus;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
+
+import AdapterClasses.RoutesFeed;
+import AdapterClasses.RoutesFeedAdapter;
 
 public class RoutesActivity extends AppCompatActivity {
 
@@ -12,6 +17,10 @@ public class RoutesActivity extends AppCompatActivity {
     static final String TAG = RoutesActivity.class.getSimpleName();
 
     private Toolbar toolbar;
+
+    private RecyclerView mRecyclerView;
+    private RoutesFeedAdapter mAdapter;
+    private RecyclerView.LayoutManager mLayoutManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -23,6 +32,16 @@ public class RoutesActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setTitle(TOOLBAR_TITLE);
+
+        mRecyclerView = (RecyclerView) findViewById(R.id.recyclerView);
+        mRecyclerView.setHasFixedSize(true);
+
+        mLayoutManager = new LinearLayoutManager(this);
+        mRecyclerView.setLayoutManager(mLayoutManager);
+
+        RoutesFeed routesFeed = new RoutesFeed();
+        mAdapter = new RoutesFeedAdapter(routesFeed.createFeeds());
+        mRecyclerView.setAdapter(mAdapter);
     }
 
     @Override
